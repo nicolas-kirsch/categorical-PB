@@ -3,7 +3,7 @@ import torch
 torch.manual_seed(2)
 
 import numpy as np
-from controller import Controller, Controller_Sigmoid
+from controller import Controller, Controller_Sigmoid, Controller_range, Controller_range_sigmoid
 from plant import System
 
 import matplotlib.pyplot as plt
@@ -13,13 +13,13 @@ x0[0,0,0] = 1
 x_target = 10
 
 horizon = 100
-num_epochs = 5000
+num_epochs = 3000
 tau_0 = 1
-tau = 0.05
+tau = 1
 sys = System(x0,horizon)
 log_epochs = num_epochs // 10
 
-controller = Controller()
+controller = Controller_range()
 
 optimizer = torch.optim.Adam(controller.parameters(), lr=1e-3)
 
@@ -29,6 +29,10 @@ best_loss = float('inf')
 best_params = None
 
 for epoch in range(num_epochs):
+
+    if epoch % 400 == 0 and epoch != 0:
+        tau /= 2
+    
     optimizer.zero_grad()
 
     #tau = tau_0 * 1/np.log(0.7*epoch+2)
@@ -38,7 +42,8 @@ for epoch in range(num_epochs):
 
     # Compute loss (mean squared error)
     target = torch.full_like(x_log,x_target)
-    loss = torch.mean((x_log - target) ** 2 + 10*(u_log*(1-u_log)) )
+    loss = torch.mean((x_log - target) ** 2 )
+                      #+ 10*(u_log*(1-u_log)) )
     # Backpropagation
     loss.backward()
     optimizer.step()
