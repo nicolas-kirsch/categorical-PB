@@ -89,25 +89,27 @@ class Controller_range(nn.Module):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(1, 16),
+            nn.Linear(2, 16),
             nn.ReLU(),
             nn.Linear(16, 1), 
              # output logit
         )
 
         self.net_range = nn.Sequential(
-            nn.Linear(1, 16),
+            nn.Linear(2, 16),
             nn.ReLU(),
             nn.Linear(16, 1),
             nn.Sigmoid()  # output logit
         )
         
 
-    def forward(self, x, tau=1.0, hard=False):
-        out_range = self.net_range(x)
+    def forward(self, x,d, tau=1.0, hard=False):
+        input = torch.cat((x,d), dim=2)
+
+        out_range = self.net_range(input)
         out_range = 1 + 2 * out_range  # Scale to [0.5, 5.0]
 
-        logits = self.net(x)  # shape: [batch, 1]
+        logits = self.net(input)  # shape: [batch, 1]
         u = torch.rand_like(logits)
         gumbel_noise = -torch.log(-torch.log(u + 1e-10) + 1e-10)
         y_soft = torch.sigmoid((logits + gumbel_noise) / tau)
