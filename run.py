@@ -7,7 +7,7 @@ from controller import Controller, Controller_Sigmoid, Controller_range, Control
 from plant import System
 from data import Dataset
 import matplotlib.pyplot as plt
-
+from collections import OrderedDict
 nb = 400
 
 x0 = torch.zeros((nb,1,1))
@@ -31,12 +31,16 @@ test_data[0,0,:] = 0
 test_data[2,0,:] = 6 
 test_data[1,0,:] = 3 
 
-test_data[0,1:,:] = 0.3
-test_data[2,1:,:] = 0.9
-test_data[1,1:,:] = 1.8
+test_data[0,70:,:] = 0.2
+test_data[2,70:,:] = 0.9
+test_data[1,70:,:] = 0.6
 dist = [0.3,0.9,1.8]
 optimizer = torch.optim.Adam(controller.parameters(), lr=1e-3)
 
+
+x_log_base, u_log_base = sys.rollout(controller, tau = tau,d=test_data, neural = False)
+u_out_base = sys.u_out.clone()
+u_bin_base = sys.hs.clone()
 
 
 best_loss = float('inf')
@@ -81,8 +85,84 @@ loss = torch.mean((x_log_hard - target) ** 2 )
 print(f'Final Loss: {loss}')
 
 x_log_test, u_log_test = sys.rollout(controller, tau=tau, d=test_data, hard=True)
+u_out_test = sys.u_out.clone()
 loss_test = torch.mean((x_log_test - x_target) ** 2 )
-print(f'Final test Loss: {loss_test}')
+u_bin_test = sys.bs.clone()
+ubs_test = sys.ubs.clone()
+hs_test = sys.hs.clone()
+
+loss_base = torch.mean((x_log_base[0] - x_target) ** 2 )
+loss_test0 = torch.mean((x_log_test[0] - x_target) ** 2 )
+
+print(f'Final test Loss: {loss_test0}')
+print(f'Final base Loss: {loss_base}')
+
+loss_base = torch.mean((x_log_base[1] - x_target) ** 2 )
+loss_test0 = torch.mean((x_log_test[1] - x_target) ** 2 )
+
+print(f'Final test Loss: {loss_test0}')
+print(f'Final base Loss: {loss_base}')
+
+loss_base = torch.mean((x_log_base[2] - x_target) ** 2 )
+loss_test0 = torch.mean((x_log_test[2] - x_target) ** 2 )
+
+print(f'Final test Loss: {loss_test0}')
+print(f'Final base Loss: {loss_base}')
+
+fig, ax = plt.subplots(3, 2, figsize=(10, 8))
+
+
+row_titles = ['d=0.2', 'd=0.6', 'd=0.9']
+for i, title in enumerate(row_titles):
+    fig.text(0.05, 0.76 - i * 0.28, title, va='center', rotation='vertical', fontsize=12)
+
+
+ax[0,1].plot(u_out_base[0,:,0].detach().numpy(), label='Bangbang')
+ax[0,1].plot(u_out_test[0,:,0].detach().numpy(), label='NN')
+ax[0,1].axhline(y=0.2, color='black', linestyle='--', label=r'$u_{min}$')
+ax[0,1].legend()
+
+ax[0,0].plot(x_log_base[0,:,0].detach().numpy(), label='Bangbang')
+ax[0,0].plot(x_log_test[0,:,0].detach().numpy(), label='NN')
+ax[0,0].axhline(y=x_target, color='r', linestyle='--', label='Target x')
+ax[0,0].legend()
+
+ax[1,1].plot(u_out_base[1,:,0].detach().numpy(), label='Bangbang')
+ax[1,1].plot(u_out_test[1,:,0].detach().numpy(), label='NN')
+ax[1,1].axhline(y=0.2, color='black', linestyle='--', label=r'$u_{min}$')
+ax[1,1].legend()
+
+ax[1,0].plot(x_log_base[1,:,0].detach().numpy(), label='Bangbang')
+ax[1,0].plot(x_log_test[1,:,0].detach().numpy(), label='NN')
+ax[1,0].axhline(y=x_target, color='r', linestyle='--', label='Target x')
+ax[1,0].legend()
+
+ax[2,1].plot(u_out_base[2,:,0].detach().numpy(), label='Bangbang')
+ax[2,1].plot(u_out_test[2,:,0].detach().numpy(), label='NN')
+ax[2,1].axhline(y=0.2, color='black', linestyle='--', label=r'$u_{min}$')
+ax[2,1].legend()
+
+ax[2,0].plot(x_log_base[2,:,0].detach().numpy(), label='Bangbang')
+ax[2,0].plot(x_log_test[2,:,0].detach().numpy(), label='NN')
+ax[2,0].axhline(y=x_target, color='r', linestyle='--', label='Target x')
+ax[2,0].legend()
+
+
+
+fig, ax = plt.subplots(2, 1, figsize=(10, 4))
+
+ax[0].plot(u_bin_base[0,:,:].detach().numpy(), label='Bangbang')
+ax[0].plot(u_bin_test[0,:,:].detach().numpy(), label='NN')
+ax[0].set_title('On off behavior - Base vs NN')
+ax[0].legend()
+
+ax[1].plot(hs_test[0,:,:].detach().numpy(), label='Bangbang')
+ax[1].plot(ubs_test[0,:,:].detach().numpy(), label='NN Output')
+ax[1].plot(u_bin_test[0,:,:].detach().numpy(), label='Used binary')
+ax[1].set_title('On off behavior - NN vs Actual')
+ax[1].legend()
+
+
 
 fig, ax = plt.subplots(3, 2)
 
@@ -109,9 +189,11 @@ ax[1,1].legend()
 
 
 
-for i in range(test_data.shape[0]): 
+for i in range(x_log_test.shape[0]): 
     ax[2,0].plot(x_log_test[i,:,:].detach().numpy(), label='d = ' + str(dist[i]))
     ax[2,1].plot(u_log_test[i,:,:].detach().numpy(), label='d = ' + str(dist[i]))
+    ax[2,0].plot(x_log_base[i,:,0].detach().numpy(), label='Bangbang')
+
 
 ax[2,0].axhline(y=x_target, color='r', linestyle='--', label='Target x')
 ax[2,0].set_ylim(0, 15)

@@ -15,7 +15,8 @@ class Dataset():
 
         # Sample one uniform value per batch in [0.3, 1.0]
 
-        u = 0.1 + 2*torch.rand((self.batch_size, 1, 1))   
+        #u = 0.9 + 1.1*torch.rand((self.batch_size, 1, 1))   
+        u = torch.rand((self.batch_size, 1, 1))   
         d[:, 70:, :] = u  # Fill from time step 70 onward (inclusive)
          
         return d
