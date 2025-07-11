@@ -3,6 +3,7 @@ import torch
 torch.manual_seed(2)
 
 import numpy as np
+from PB_controller import PerfBoostController
 from controller import Controller, Controller_Sigmoid, Controller_range, Controller_range_sigmoid
 from plant import System
 from data import Dataset
@@ -13,16 +14,25 @@ nb = 400
 x0 = torch.zeros((nb,1,1))
 #x0[0,0,0] = 10
 x_target = 10
+x_init = torch.zeros((1,1))
+ub_init = torch.zeros((1,1))
+uc_init = torch.zeros((1,1))
+uc_init[:,:] = -0.7
 
 horizon = 200
-num_epochs = 5000
+num_epochs = 100
 
 tau_0 = 1
 tau = 0.05
 sys = System(x0,horizon)
 log_epochs = num_epochs // 10
 
-controller = Controller_range()
+#controller = Controller_range()
+controller = PerfBoostController(noiseless_forward=sys.noiseless_forward, 
+                                 input_init = x_init, b_output_init = ub_init,c_output_init=uc_init,
+        # acyclic REN properties
+        dim_internal = 10, dim_nl = 10)
+""""""
 data = Dataset(x0, horizon)
 d = data.generate_data()
 test_data = data.generate_data()
@@ -31,9 +41,9 @@ test_data[0,0,:] = 0
 test_data[2,0,:] = 6 
 test_data[1,0,:] = 3 
 
-test_data[0,70:,:] = 0.2
-test_data[2,70:,:] = 0.9
-test_data[1,70:,:] = 0.6
+test_data[0,1:70,:] = -0.2
+test_data[2,1:70,:] = -0.9
+test_data[1,1:70,:] = -0.6
 dist = [0.3,0.9,1.8]
 optimizer = torch.optim.Adam(controller.parameters(), lr=1e-3)
 
@@ -156,7 +166,7 @@ ax[0].plot(u_bin_test[0,:,:].detach().numpy(), label='NN')
 ax[0].set_title('On off behavior - Base vs NN')
 ax[0].legend()
 
-ax[1].plot(hs_test[0,:,:].detach().numpy(), label='Bangbang')
+#ax[1].plot(hs_test[0,:,:].detach().numpy(), label='Bangbang')
 ax[1].plot(ubs_test[0,:,:].detach().numpy(), label='NN Output')
 ax[1].plot(u_bin_test[0,:,:].detach().numpy(), label='Used binary')
 ax[1].set_title('On off behavior - NN vs Actual')

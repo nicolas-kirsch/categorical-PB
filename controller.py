@@ -85,25 +85,54 @@ class Controller_range_sigmoid(nn.Module):
             return out_range
         #*y_soft
                        
+class MLP(nn.Module):
+    def __init__(self, dim_in = 2,dim_out = 1):
+        super().__init__()
+
+        self.mlp = nn.Sequential(
+            nn.Linear(dim_in, 16),
+            nn.ReLU(),
+            nn.Linear(16, dim_out)  # output logit
+        )
+
+    def forward(self, x):
+        return  self.mlp(x)
+
+class MLPS(nn.Module):
+    def __init__(self, dim_in = 2,dim_out = 1):
+        super().__init__()
+
+        self.net_range = nn.Sequential(
+            nn.Linear(dim_in, 16),
+            nn.ReLU(),
+            nn.Linear(16, dim_out),
+            nn.Sigmoid()  # output logit
+        )
+
+    def forward(self, x):
+        return  self.net_range(x)
 
 
 class Controller_range(nn.Module):
     def __init__(self):
         super().__init__()
-        self.net = nn.Sequential(
+        """self.net = nn.Sequential(
             nn.Linear(2, 16),
             nn.ReLU(),
             nn.Linear(16, 1), 
              # output logit
-        )
+        )"""
 
-        self.net_range = nn.Sequential(
+        self.net = MLP()
+
+
+        """self.net_range = nn.Sequential(
             nn.Linear(2, 16),
             nn.ReLU(),
             nn.Linear(16, 1),
             nn.Sigmoid()  # output logit
-        )
-        
+        )"""
+        self.net_range = MLPS()
 
     def forward(self, x,d, tau=1.0, hard=False):
         input = torch.cat((x,d), dim=2)

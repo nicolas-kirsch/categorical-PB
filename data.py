@@ -17,7 +17,7 @@ class Dataset():
 
         #u = 0.9 + 1.1*torch.rand((self.batch_size, 1, 1))   
         u = torch.rand((self.batch_size, 1, 1))   
-        d[:, 70:, :] = u  # Fill from time step 70 onward (inclusive)
+        d[:, 1:70, :] = -u  # Fill from time step 70 onward (inclusive)
          
         return d
 

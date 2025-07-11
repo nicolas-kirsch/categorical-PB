@@ -6,7 +6,7 @@ class System(torch.nn.Module):
         self.horizon = horizon
           # Initialize heating state to 0.5 (OFF)
 
-    def step(self, x, u_NN,u_bin, d = None, neural = True):
+    def noiseless_forward(self, x, u_NN,u_bin,  neural = True):
         """if d is not None:
             u = d[:, 0:+1, :] + u"""
         # Compute conditions
@@ -25,12 +25,19 @@ class System(torch.nn.Module):
         else:
             u = self.heating*0.7
 
-        x = 0.99*x + u -d
+        x = 0.99*x + u 
 
         self.u = u.clone()
         return x
     
+    def forward(self,x, u,u_bin,d, neural=True):
+        x_noiseless = self.noiseless_forward(x, u,u_bin, neural=neural)
+        return  x_noiseless + d
+    
     def rollout(self, controller, tau = 0.06,d = None, hard = False, neural = True):
+        controller.reset()
+
+        
         self.heating = torch.full_like(d[:,0:1,:], 1)
         self.binary =  torch.full_like(d[:,0:1,:], 1)
         x = d[:,0:1,:] if d is not None else self.x0.clone()
@@ -45,8 +52,8 @@ class System(torch.nn.Module):
         
         for t in range(1,self.horizon-1):
 
-            u, u_bin = controller(x,d[:,t:t+1,:],tau = tau,  hard = hard)
-            x = self.step(x, u,u_bin,d[:,t:t+1,:], neural=neural)
+            u, u_bin = controller(x,tau = tau,  hard = hard, neural = neural)
+            x = self.forward(x, u,u_bin,d[:,t:t+1,:], neural=neural)
 
             xs = torch.cat((xs, x), 1)
             us = torch.cat((us, u), 1)
