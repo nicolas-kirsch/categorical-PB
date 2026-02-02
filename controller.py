@@ -5,25 +5,46 @@ class Controller(nn.Module):
     def __init__(self):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(1, 16),
+            nn.Linear(2, 16),
+            nn.ReLU(),
+            nn.Linear(16, 16),
             nn.ReLU(),
             nn.Linear(16, 1)  # output logit
         )
 
-        
 
-    def forward(self, x, tau=1.0, hard=False):
-        logits = self.net(x)  # shape: [batch, 1]
+        hidden_size = 32
+        num_layers = 2
+        dropout = 0.2
+        self.gru = nn.GRU(2, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_size // 2, 1)
+        )
+
+    def forward(self, x,d, tau=1.0, hard=False):
+        input = torch.cat((x,d), dim=2)
+
+        #logits = self.net(x)  # shape: [batch, 1]
+        logit, _ = self.gru(input)
+        #logits = self.fc(logit)  # shape: [batch, 1]
+        logits = self.net(input)  # shape: [batch, 1]
         u = torch.rand_like(logits)
         gumbel_noise = -torch.log(-torch.log(u + 1e-10) + 1e-10)
-        y_soft = torch.sigmoid((logits + gumbel_noise) / tau)
-
+        #y_soft = torch.sigmoid((logits + gumbel_noise) / tau)
+        #y_soft = torch.sigmoid((logits) / tau)
+        y_soft = logits.clone()
+        
         if hard:
             y_hard = (y_soft > 0.5).float()
             # Straight-through estimator
-            return (y_hard - y_soft).detach() + y_soft
+            binary_out = (y_hard - y_soft).detach() + y_soft
+            return torch.full_like(binary_out,1), binary_out
+        #*((y_hard - y_soft).detach() + y_soft)
         else:
-            return y_soft
+            return torch.full_like(y_soft,1), y_soft
 
 
 class Controller_Sigmoid(nn.Module):

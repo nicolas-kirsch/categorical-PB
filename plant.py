@@ -10,20 +10,23 @@ class System(torch.nn.Module):
         """if d is not None:
             u = d[:, 0:+1, :] + u"""
         # Compute conditions
-        on  = x < 9.5  # ON if too cold
-        off = x > 10.5  # OFF if too hot
+        on  = x < 8  # ON if too cold
+        off = x > 12  # OFF if too hot
 
         # Apply bang-bang control with hysteresis
         self.heating = torch.where(on,  torch.ones_like(x),
                 torch.where(off, torch.zeros_like(x),
                 self.heating))
+        
+        
         # Else: keep the current state
-        self.binary = (1-(1-self.heating)*(1-u_bin))
+        #self.binary = (1-(1-self.heating)*(1-u_bin))
+        self.binary = u_bin.clone()
         #x = 0.95*x + u - d
         if neural:
-            u = self.binary*(0.7+u_NN)
+            u = self.binary*(0.4)
         else:
-            u = self.heating*0.7
+            u = self.heating*0.4
 
         x = 0.99*x + u -d
 

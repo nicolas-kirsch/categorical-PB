@@ -18,7 +18,7 @@ horizon = 200
 num_epochs = 5000
 
 tau_0 = 1
-tau = 0.05
+tau = 0.005
 sys = System(x0,horizon)
 log_epochs = num_epochs // 10
 
@@ -33,12 +33,12 @@ test_data[1,0,:] = 3
 
 test_data[0,1:,:] = 0.3
 test_data[2,1:,:] = 0.9
-test_data[1,1:,:] = 1.8
+test_data[1,1:,:] = 0
 dist = [0.3,0.9,1.8]
 
 target = 10
 
-x_log, u_log = sys.rollout(controller, tau = tau,d=d, neural = False)
+x_log, u_log = sys.rollout(controller, tau = tau,d=test_data, neural = False)
 loss = torch.mean((x_log - target) ** 2 )
 print(loss)
 

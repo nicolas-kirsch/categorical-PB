@@ -15,49 +15,57 @@ x0 = torch.zeros((nb,1,1))
 x_target = 10
 
 horizon = 200
-num_epochs = 5000
+num_epochs = 500
+
+
 
 tau_0 = 1
-tau = 0.05
+tau_end = 1
 sys = System(x0,horizon)
 log_epochs = num_epochs // 10
 
-controller = Controller_range()
+controller = Controller()
 data = Dataset(x0, horizon)
 d = data.generate_data()
+
+
 test_data = data.generate_data()
 test_data = test_data[:3, :, :]  # Use only the first time step for testing
 test_data[0,0,:] = 0 
 test_data[2,0,:] = 6 
 test_data[1,0,:] = 3 
 
-test_data[0,70:,:] = 0.2
-test_data[2,70:,:] = 0.9
-test_data[1,70:,:] = 0.6
-dist = [0.3,0.9,1.8]
-optimizer = torch.optim.Adam(controller.parameters(), lr=1e-3)
+test_data[0,70:,:] = 0
+test_data[2,70:,:] = 0.1
+test_data[1,70:,:] = 0.3
+dist = [0.3,0.55,0.4]
+optimizer = torch.optim.Adam(controller.parameters(), lr=5e-4)
 
 
-x_log_base, u_log_base = sys.rollout(controller, tau = tau,d=test_data, neural = False)
+x_log_base, u_log_base = sys.rollout(controller, tau = tau_0,d=test_data, neural = False)
 u_out_base = sys.u_out.clone()
 u_bin_base = sys.hs.clone()
 
 
 best_loss = float('inf')
 best_params = None
+alpha = 0.05
 
 for epoch in range(num_epochs):
     
     optimizer.zero_grad()
 
-    #tau = tau_0 * 1/np.log(0.7*epoch+2)
+    
 
+    #tau = np.maximum(tau_0 * alpha**(epoch/30),0.01)
+    #tau = tau_0 + (tau_end - tau_0) * (epoch / num_epochs)
+    tau = tau_end
     # Simulate the system for 10 steps
     x_log, u_log = sys.rollout(controller, tau = tau,d=d)
 
     # Compute loss (mean squared error)
     target = torch.full_like(x_log,x_target)
-    loss = torch.mean((x_log - target) ** 2 )
+    loss = torch.mean(5*(x_log - target) ** 2 )
                       #+ 10*(u_log*(1-u_log)) )
     # Backpropagation
     loss.backward()
@@ -78,7 +86,7 @@ controller.load_state_dict(best_params)
 
 x_log, u_log = sys.rollout(controller, tau=tau,d = d)
 
-
+u_out_soft = sys.u_out.clone()
 
 x_log_hard, u_log_hard = sys.rollout(controller,tau=tau,d = d, hard=True)
 loss = torch.mean((x_log_hard - target) ** 2 )
@@ -149,7 +157,7 @@ ax[2,0].legend()
 
 
 
-fig, ax = plt.subplots(2, 1, figsize=(10, 4))
+"""fig, ax = plt.subplots(2, 1, figsize=(10, 4))
 
 ax[0].plot(u_bin_base[0,:,:].detach().numpy(), label='Bangbang')
 ax[0].plot(u_bin_test[0,:,:].detach().numpy(), label='NN')
@@ -160,7 +168,7 @@ ax[1].plot(hs_test[0,:,:].detach().numpy(), label='Bangbang')
 ax[1].plot(ubs_test[0,:,:].detach().numpy(), label='NN Output')
 ax[1].plot(u_bin_test[0,:,:].detach().numpy(), label='Used binary')
 ax[1].set_title('On off behavior - NN vs Actual')
-ax[1].legend()
+ax[1].legend()"""
 
 
 
@@ -172,18 +180,18 @@ ax[0,0].set_title('State x')
 ax[0,0].set_ylim(0, 15)
 ax[0,0].legend()
 
-ax[0,1].plot(u_log[0,:,:].detach().numpy(), label='Control u')
+ax[0,1].plot(u_out_soft[0,:,:].detach().numpy(), label='Control u')
 ax[0,1].set_title('Control u')
 ax[0,1].legend()
 
 ax[1,0].plot(x_log_hard[0,:,:].detach().numpy(), label='State x')
 ax[1,0].axhline(y=x_target, color='r', linestyle='--', label='Target x')
 ax[1,0].set_ylim(0, 15)
-ax[1,0].set_title('State x')
+ax[1,0].set_title('State x hard')
 ax[1,0].legend()
 
-ax[1,1].plot(u_log_hard[0,:,:].detach().numpy(), label='Control u')
-ax[1,1].set_title('Control u')
+ax[1,1].plot(u_out_test[0,:,:].detach().numpy(), label='Control u')
+ax[1,1].set_title('Control u hard')
 ax[1,1].legend()
 
 
